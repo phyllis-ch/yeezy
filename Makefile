@@ -1,5 +1,5 @@
 yz: main.c yz.c
-	cc -Wall -Wextra -o yz main.c yz.c
+	cc -Wall -Wextra -o yz main.c yz.c -lm
 
 install: yz
 	mkdir -p /usr/local/bin
