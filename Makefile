@@ -9,4 +9,7 @@ install: yz
 uninstall:
 	rm -f /usr/local/bin/yz
 
-.PHONY: yz install uninstall
+clean:
+	rm -f ./yz
+
+.PHONY: yz install uninstall clean
