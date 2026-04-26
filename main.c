@@ -1,63 +1,87 @@
 #include "yz.h"
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-#define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
 #define BUF_SIZE 65536
 #define ENTRY_SIZE 1024
-
-typedef void (*fn_ptr)(void);
-
 char line[1024];
 
 typedef struct {
    char entry[ENTRY_SIZE];
    int score;
+   int frequency_score;
 } Entry;
 
-void db_write(void) {
-}
+typedef struct {
+   Entry *items;
+   size_t count;
+   size_t capacity;
+} Entries;
 
-int count_lines(FILE *file) {
-   char buf[BUF_SIZE];
-   int count = 0;
+#define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
 
-   for (;;) {
-      int res = (int)fread(buf, 1, BUF_SIZE, file);
-      if (ferror(file)) return 1;
+#define da_append(xs, x)\
+   do {\
+      if (xs.count >= xs.capacity) {\
+         if (xs.capacity == 0) xs.capacity = 256;\
+         else xs.capacity *= 2;\
+            xs.items = realloc(xs.items, xs.capacity*sizeof(*xs.items));\
+      }\
+      xs.items[xs.count++] = x;\
+   } while(0)
 
-      for (int i = 0; i < res; ++i)
-         if (buf[i] == '\n') count++;
-
-      if (feof(file)) break;
-   }
-
-   return count;
-}
 
 int comp(const void *a, const void *b) {
-   Entry *ra = (Entry *)a;
-   Entry *rb = (Entry *)b;
+   Entry *ea = (Entry *)a;
+   Entry *eb = (Entry *)b;
 
-   return rb->score - ra->score;
+   return eb->score - ea->score;
 }
 
 int main(int argc, char *argv[]) {
    if (argc < 2) {
-      fprintf(stderr, "Usage: %s [-o output] <file>\n", argv[0]);
+      fprintf(stderr, "Usage: %s yomama\n", argv[0]);
       fprintf(stderr, "Missing options and arguments\n");
       exit(69);
+   }
+
+   const char *db_path = "/home/chocodeerzynx/dev/amazingporn/yeezy/db";
+
+   if (!strcmp(argv[1], "query")) {
+      if (!argv[2]) return 1;
+      char *pattern = argv[2];
+
+      FILE *db = fopen(db_path, "rb");
+      printf("query\n");
+
+      Entries arr = {0};
+      for (int i = 0; ; ++i) {
+         Entry buf;
+         fread(&buf, sizeof(Entry), 1, db);
+         if (strstr(buf.entry, pattern)) {
+            da_append(arr, buf);
+         }
+         if (feof(db)) break;
+      }
+
+      for (size_t i = 0; i < arr.count; ++i) {
+         arr.items[i].score = get_fzscore(argv[2], arr.items[i].entry);
+      }
+      qsort(arr.items, arr.count, sizeof(Entry), comp);
+      printf("%s -> %d\n", arr.items[1].entry, arr.items[1].score);
+
+      fclose(db);
+      return 0;
    }
 
    if (!strcmp(argv[1], "add")) {
       if (!argv[2]) return 1;
 
-      FILE *db = fopen("./db", "ab");
+      FILE *db = fopen(db_path, "ab");
       printf("yesmama\n");
 
       Entry new = {0};
       snprintf(new.entry, ENTRY_SIZE, "%s", argv[2]);
+      new.frequency_score = 10;
       new.score = 0;
       fwrite(&new, sizeof(Entry), 1, db);
 
@@ -65,29 +89,21 @@ int main(int argc, char *argv[]) {
       return 0;
    }
 
-   if (!strcmp(argv[1], "write")) {
-      FILE *db = fopen("./db", "wb");
-      printf("yomama\n");
+   if (!strcmp(argv[1], "load")) {
+      FILE *db = fopen(db_path, "rb");
+      printf("loading\n");
 
-      Entry items = {
-         .entry = "mama",
-         .score = 69
-      };
+      Entries arr = {0};
+      for (int i = 0; ; ++i) {
+         Entry buf;
+         fread(&buf, sizeof(Entry), 1, db);
+         da_append(arr, buf);
+         if (feof(db)) break;
+      }
 
-      fwrite(&items, sizeof(Entry), 1, db);
-
-      fclose(db);
-      return 0;
-   }
-
-   if (!strcmp(argv[1], "read")) {
-      FILE *db = fopen("./db", "rb");
-      printf("mymama\n");
-
-      Entry test = {0};
-      fread(&test, sizeof(Entry), 1, db);
-
-      printf("%s -> %d\n", test.entry, test.score);
+      for (int i = 0; i < (int)arr.count; ++i) {
+         printf("%s -> %d\n", arr.items[i].entry, arr.items[i].score);
+      }
 
       fclose(db);
       return 0;
