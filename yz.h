@@ -5,8 +5,7 @@
 #include <ctype.h>
 #include <math.h>
 
-#define BUF_SIZE 65536
-#define ENTRY_SIZE 1024
+#define ENTRY_SIZE 256
 
 typedef struct {
    char entry[ENTRY_SIZE];
