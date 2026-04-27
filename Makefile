@@ -1,15 +1,15 @@
 yz: main.c yz.c
-	cc -Wall -Wextra -o yz main.c yz.c -lm
+	cc -Wall -Wextra -o yeezy main.c yz.c -lm
 
 install: yz
 	mkdir -p /usr/local/bin
-	cp -f yz /usr/local/bin
-	chmod 755 /usr/local/bin/yz
+	cp -f yeezy /usr/local/bin
+	chmod 755 /usr/local/bin/yeezy
 
 uninstall:
-	rm -f /usr/local/bin/yz
+	rm -f /usr/local/bin/yeezy
 
 clean:
-	rm -f ./yz
+	rm -f ./yeezy
 
-.PHONY: yz install uninstall clean
+.PHONY: yeezy install uninstall clean
