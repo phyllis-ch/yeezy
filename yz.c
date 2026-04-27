@@ -18,6 +18,7 @@ int get_fzscore(const char *pattern, const char *text) {
          if (first_match == -1) first_match = ti; // record text index of first match
 
          score += 10; // match
+         score -= strlen(text);
          if (consecutive_matches > 0) score += 15;
          if (ti == 0 || match_seperator(text[ti - 1])) score += 20;
 
