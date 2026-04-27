@@ -19,6 +19,18 @@ typedef struct {
    size_t capacity;
 } Entries;
 
+// Wrapper struct for pointer to Entry with score
+typedef struct {
+   Entry *name;
+   double score;
+} Scored_Entry;
+
+typedef struct {
+   Scored_Entry *items;
+   size_t count;
+   size_t capacity;
+} Scored_Entries;
+
 #define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
 
 #define da_append(xs, x)\
