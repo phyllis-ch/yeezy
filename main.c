@@ -1,5 +1,4 @@
 #include "yz.h"
-#include <stdio.h>
 
 typedef struct {
    Entry *name;
