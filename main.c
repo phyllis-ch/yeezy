@@ -1,15 +1,23 @@
 #include "yz.h"
 
-typedef struct {
-   Entry *name;
-   double score;
-} Scored_Entry;
+void parse_flags(int argc, char *argv[]) {
+   if (argc < 2) {
+      fprintf(stderr, "Usage: %s [-h] [command] [<args>]\n", argv[0]);
+      fprintf(stderr, "Missing command and arguments\n");
+      exit(69);
+   }
 
-typedef struct {
-   Scored_Entry *items;
-   size_t count;
-   size_t capacity;
-} Scored_Entries;
+   if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
+      printf("Usage: %s [-h] [command] [<args>]\n\n", argv[0]);
+      printf("Commands:\n");
+      printf("    add            Add an entry to the database\n");
+      printf("    query          Query entry from the database\n");
+      printf("    list           List all entries in the database\n");
+      printf("Options:\n");
+      printf("    -h, --help     Print help and exit.\n");
+      exit(0);
+   }
+}
 
 char *get_data_home(void) {
    char *path = getenv("XDG_DATA_HOME");
@@ -43,14 +51,21 @@ int comp(const void *a, const void *b) {
 }
 
 int main(int argc, char *argv[]) {
-   if (argc < 2) {
-      fprintf(stderr, "Usage: %s yomama\n", argv[0]);
-      fprintf(stderr, "Missing options and arguments\n");
-      exit(69);
-   }
+   parse_flags(argc, argv);
 
    const char *db_path = get_data_home();
    const time_t time_now = time(NULL);
+   FILE *db = NULL;
+   int state;
+
+   if (!strcmp(argv[1], "add")) {
+      db = fopen(db_path, "ab");
+      state = 1;
+   }
+   else {
+      db = fopen(db_path, "rb");
+      state = 2;
+   }
 
    // if (!strcmp(argv[1], "query")) {
    //    if (!argv[2]) return 1;
@@ -82,7 +97,6 @@ int main(int argc, char *argv[]) {
    if (!strcmp(argv[1], "add")) {
       if (!argv[2]) return 1;
 
-      FILE *db = fopen(db_path, "ab");
       printf("yesmama\n");
 
       Entry new = {0};
@@ -90,13 +104,9 @@ int main(int argc, char *argv[]) {
       new.frequency_score = 1;
       new.last_visited = time(NULL);
       fwrite(&new, sizeof(Entry), 1, db);
-
-      fclose(db);
-      return 0;
    }
 
    if (!strcmp(argv[1], "list")) {
-      FILE *db = fopen(db_path, "rb");
       printf("loading\n");
 
       Entries arr = {0};
@@ -108,16 +118,11 @@ int main(int argc, char *argv[]) {
       for (size_t i = 0; i < arr.count; ++i) {
          printf("%s -> %d : %ld\n", arr.items[i].entry, arr.items[i].frequency_score, arr.items[i].last_visited);
       }
-
-      fclose(db);
-      return 0;
    }
 
    if (!strcmp(argv[1], "query")) {
       if (!argv[2]) return 1;
       char *pattern = argv[2];
-
-      FILE *db = fopen(db_path, "rb");
 
       // Cache entries from db
       Entries arr = {0};
@@ -147,10 +152,8 @@ int main(int argc, char *argv[]) {
       filtered_arr.items[0].name->last_visited = time_now;
       // printf("%s -> %f : %ld\n", filtered_arr.items[0].name->entry, filtered_arr.items[0].score, filtered_arr.items[0].name->last_visited);
       fprintf(stdout, "%s", filtered_arr.items[0].name->entry);
-
-      fclose(db);
-      return 0;
    }
 
+   fclose(db);
    return 0;
 }
