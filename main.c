@@ -1,4 +1,16 @@
 #include "yz.h"
+#include <stdio.h>
+
+typedef struct {
+   Entry *name;
+   double score;
+} Scored_Entry;
+
+typedef struct {
+   Scored_Entry *items;
+   size_t count;
+   size_t capacity;
+} Scored_Entries;
 
 char *get_data_home(void) {
    char *path = getenv("XDG_DATA_HOME");
@@ -22,14 +34,14 @@ double get_decayed_score(char *pattern, Entry entry, time_t now) {
       return frequency * match;
 }
 
-// int comp(const void *a, const void *b) {
-//    Entry *ea = (Entry *)a;
-//    Entry *eb = (Entry *)b;
-//
-//    double score_a = get_decayed_score(char *pattern, Entry entry, time_t now)
-//
-//    return eb->score - ea->score;
-// }
+int comp(const void *a, const void *b) {
+   Scored_Entry *ea = (Scored_Entry *)a;
+   Scored_Entry *eb = (Scored_Entry *)b;
+
+   if (eb->score < ea->score) return -1;
+   if (eb->score > ea->score) return 1;
+   return 0;
+}
 
 int main(int argc, char *argv[]) {
    if (argc < 2) {
@@ -41,32 +53,32 @@ int main(int argc, char *argv[]) {
    const char *db_path = get_data_home();
    const time_t time_now = time(NULL);
 
-   if (!strcmp(argv[1], "query")) {
-      if (!argv[2]) return 1;
-      char *pattern = argv[2];
-
-      FILE *db = fopen(db_path, "rb");
-      printf("query\n");
-
-      Entries arr = {0};
-      for (int i = 0; ; ++i) {
-         Entry buf;
-         fread(&buf, sizeof(Entry), 1, db);
-         if (strstr(buf.entry, pattern)) {
-            da_append(arr, buf);
-         }
-         if (feof(db)) break;
-      }
-
-      // for (size_t i = 0; i < arr.count; ++i) {
-      //    arr.items[i].score = get_fzscore(argv[2], arr.items[i].entry);
-      // }
-      // qsort(arr.items, arr.count, sizeof(Entry), comp);
-      // printf("%s -> %d\n", arr.items[1].entry, arr.items[1].score);
-
-      fclose(db);
-      return 0;
-   }
+   // if (!strcmp(argv[1], "query")) {
+   //    if (!argv[2]) return 1;
+   //    char *pattern = argv[2];
+   //
+   //    FILE *db = fopen(db_path, "rb");
+   //    printf("query\n");
+   //
+   //    Entries arr = {0};
+   //    for (int i = 0; ; ++i) {
+   //       Entry buf;
+   //       fread(&buf, sizeof(Entry), 1, db);
+   //       if (strstr(buf.entry, pattern)) {
+   //          da_append(arr, buf);
+   //       }
+   //       if (feof(db)) break;
+   //    }
+   //
+   //    // for (size_t i = 0; i < arr.count; ++i) {
+   //    //    arr.items[i].score = get_fzscore(argv[2], arr.items[i].entry);
+   //    // }
+   //    // qsort(arr.items, arr.count, sizeof(Entry), comp);
+   //    // printf("%s -> %d\n", arr.items[1].entry, arr.items[1].score);
+   //
+   //    fclose(db);
+   //    return 0;
+   // }
 
    if (!strcmp(argv[1], "add")) {
       if (!argv[2]) return 1;
@@ -95,32 +107,47 @@ int main(int argc, char *argv[]) {
       }
 
       for (size_t i = 0; i < arr.count; ++i) {
-         printf("%s -> %d : %ld\n", arr.items[0].entry, arr.items[0].frequency_score, arr.items[0].last_visited);
+         printf("%s -> %d : %ld\n", arr.items[i].entry, arr.items[i].frequency_score, arr.items[i].last_visited);
       }
 
       fclose(db);
       return 0;
    }
 
-   if (!strcmp(argv[1], "mama")) {
+   if (!strcmp(argv[1], "query")) {
       if (!argv[2]) return 1;
       char *pattern = argv[2];
 
       FILE *db = fopen(db_path, "rb");
-      printf("mathy\n");
 
+      // Cache entries from db
       Entries arr = {0};
       Entry buf;
       while (fread(&buf, sizeof(Entry), 1, db)) {
-         if (strstr(buf.entry, pattern))
             da_append(arr, buf);
       }
 
-      printf("%f\n", get_decayed_score(argv[2], arr.items[0], time_now));
-
+      // Filter cached entries
+      Scored_Entries filtered_arr = {0};
       for (size_t i = 0; i < arr.count; ++i) {
-         printf("%s -> %d : %ld\n", arr.items[0].entry, arr.items[0].frequency_score, arr.items[0].last_visited);
+         if (strstr(arr.items[i].entry, pattern)) {
+            if (filtered_arr.count >= filtered_arr.capacity) {
+               if (filtered_arr.capacity == 0) filtered_arr.capacity = 256;
+               else filtered_arr.capacity *= 2;
+               filtered_arr.items = realloc(filtered_arr.items, filtered_arr.capacity*sizeof(*filtered_arr.items));
+            }
+            filtered_arr.items[filtered_arr.count++].name = &arr.items[i];
+         }
       }
+
+      for (size_t i = 0; i < filtered_arr.count; ++i)
+         filtered_arr.items[i].score = get_decayed_score(argv[2], *filtered_arr.items[i].name, time_now);
+      qsort(filtered_arr.items, filtered_arr.count, sizeof(Scored_Entry), comp);
+
+      // filtered_arr.items[0].name->frequency_score++;
+      filtered_arr.items[0].name->last_visited = time_now;
+      // printf("%s -> %f : %ld\n", filtered_arr.items[0].name->entry, filtered_arr.items[0].score, filtered_arr.items[0].name->last_visited);
+      fprintf(stdout, "%s", filtered_arr.items[0].name->entry);
 
       fclose(db);
       return 0;
