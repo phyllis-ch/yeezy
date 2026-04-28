@@ -1,4 +1,3 @@
-#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,8 +8,7 @@
 
 typedef struct {
    char entry[ENTRY_SIZE];
-   int frequency_score;
-   time_t last_visited;
+   double frequency_score;
 } Entry;
 
 typedef struct {
@@ -23,6 +21,7 @@ typedef struct {
 typedef struct {
    Entry *name;
    double score;
+   size_t db_index;
 } Scored_Entry;
 
 typedef struct {
