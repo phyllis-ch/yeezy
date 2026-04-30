@@ -1,4 +1,5 @@
 #include "yz.h"
+#include <stdio.h>
 
 void parse_flags(int argc, char *argv[]) {
    if (argc < 2) {
@@ -54,6 +55,27 @@ int comp_freq(const void *a, const void *b) {
    return 0;
 }
 
+unsigned int hash(char *str) {
+   unsigned int result = 0;
+
+   for (int i = 0; str[i]; ++i) {
+      result += str[i];
+      result *= str[i];
+   }
+   return result;
+}
+
+typedef struct {
+   unsigned int hash;
+   Entry *ptr;
+} Node;
+
+void hm_push(Node *map, unsigned int hash_result, Entry *entry) {
+   int idx = hash_result % 1024;
+   map[idx].hash = hash_result;
+   map[idx].ptr = entry;
+}
+
 int main(int argc, char *argv[]) {
    parse_flags(argc, argv);
 
@@ -61,7 +83,7 @@ int main(int argc, char *argv[]) {
    FILE *db = NULL;
    int state;
 
-   if (!strcmp(argv[1], "add")) {
+   if (!strcmp(argv[1], "mama")) {
       db = fopen(db_path, "a+b");
       state = 1;
    } else if (!strcmp(argv[1], "query")) {
@@ -70,6 +92,45 @@ int main(int argc, char *argv[]) {
    } else {
       db = fopen(db_path, "rb");
       state = 3;
+   }
+
+   // Cache entries from db
+   Entries arr = {0};
+   Entry buf;
+   while (fread(&buf, sizeof(Entry), 1, db)) {
+      da_append(arr, buf);
+   }
+
+   if (!strcmp(argv[1], "mama")) {
+      if (!argv[2]) return 1;
+      printf("sherlock\n");
+
+      Node map[1024] = {0};
+
+      for (size_t i = 0; i < arr.count; ++i) {
+         unsigned int hash_result = hash(arr.items[i].entry);
+         printf("%s -> %u\n", arr.items[i].entry, hash_result % 1024);
+         hm_push(map, hash_result, &arr.items[i]);
+      }
+
+      printf("------------\n");
+      for (size_t i = 0; i < 1024; ++i) {
+         if (!map[i].ptr) continue;
+         printf("%s -> %u\n", map[i].ptr->entry, map[i].hash);
+      }
+
+      char *test = argv[2];
+      // lookup
+      int idx = hash(test) % 1024;
+      if (!map[idx].ptr) {
+         printf("empty\n");
+         Entry new = {0};
+         snprintf(new.entry, ENTRY_SIZE, "%s", test);
+         new.frequency_score = 1;
+         fwrite(&new, sizeof(Entry), 1, db);
+         fflush(db);
+      } else printf("full\n");
+      return 0;
    }
 
    if (!strcmp(argv[1], "add")) {
@@ -86,12 +147,6 @@ int main(int argc, char *argv[]) {
    if (!strcmp(argv[1], "list")) {
       printf("loading\n");
 
-      Entries arr = {0};
-      Entry buf;
-      while (fread(&buf, sizeof(Entry), 1, db)) {
-         da_append(arr, buf);
-      }
-
       qsort(arr.items, arr.count, sizeof(Entry), comp_freq);
       for (size_t i = 0; i < arr.count; ++i) {
          printf("%s -> %f\n", arr.items[i].entry, arr.items[i].frequency_score);
@@ -102,13 +157,6 @@ int main(int argc, char *argv[]) {
       if (!argv[2]) return 1;
       char *pattern = argv[2];
       double decay = 0.95;
-
-      // Cache entries from db
-      Entries arr = {0};
-      Entry buf;
-      while (fread(&buf, sizeof(Entry), 1, db)) {
-         da_append(arr, buf);
-      }
 
       // Filter cached entries
       Scored_Entries filtered_arr = {0};
