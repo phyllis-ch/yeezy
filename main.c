@@ -1,5 +1,4 @@
 #include "yz.h"
-#include <stdio.h>
 
 void parse_flags(int argc, char *argv[]) {
    if (argc < 2) {
@@ -83,7 +82,7 @@ int main(int argc, char *argv[]) {
    FILE *db = NULL;
    int state;
 
-   if (!strcmp(argv[1], "mama")) {
+   if (!strcmp(argv[1], "add")) {
       db = fopen(db_path, "a+b");
       state = 1;
    } else if (!strcmp(argv[1], "query")) {
@@ -101,48 +100,37 @@ int main(int argc, char *argv[]) {
       da_append(arr, buf);
    }
 
-   if (!strcmp(argv[1], "mama")) {
+   if (!strcmp(argv[1], "add")) {
       if (!argv[2]) return 1;
       printf("sherlock\n");
 
       Node map[1024] = {0};
 
-      for (size_t i = 0; i < arr.count; ++i) {
-         unsigned int hash_result = hash(arr.items[i].entry);
-         printf("%s -> %u\n", arr.items[i].entry, hash_result % 1024);
-         hm_push(map, hash_result, &arr.items[i]);
-      }
+      for (size_t i = 0; i < arr.count; ++i)
+         hm_push(map, hash(arr.items[i].entry), &arr.items[i]);
 
-      printf("------------\n");
-      for (size_t i = 0; i < 1024; ++i) {
-         if (!map[i].ptr) continue;
-         printf("%s -> %u\n", map[i].ptr->entry, map[i].hash);
-      }
-
-      char *test = argv[2];
       // lookup
-      int idx = hash(test) % 1024;
+      int idx = hash(argv[2]) % 1024;
       if (!map[idx].ptr) {
          printf("empty\n");
          Entry new = {0};
-         snprintf(new.entry, ENTRY_SIZE, "%s", test);
+         snprintf(new.entry, ENTRY_SIZE, "%s", argv[2]);
          new.frequency_score = 1;
          fwrite(&new, sizeof(Entry), 1, db);
          fflush(db);
       } else printf("full\n");
-      return 0;
    }
 
-   if (!strcmp(argv[1], "add")) {
-      if (!argv[2]) return 1;
-
-      printf("yesmama\n");
-
-      Entry new = {0};
-      snprintf(new.entry, ENTRY_SIZE, "%s", argv[2]);
-      new.frequency_score = 1;
-      fwrite(&new, sizeof(Entry), 1, db);
-   }
+   // if (!strcmp(argv[1], "add")) {
+   //    if (!argv[2]) return 1;
+   //
+   //    printf("yesmama\n");
+   //
+   //    Entry new = {0};
+   //    snprintf(new.entry, ENTRY_SIZE, "%s", argv[2]);
+   //    new.frequency_score = 1;
+   //    fwrite(&new, sizeof(Entry), 1, db);
+   // }
 
    if (!strcmp(argv[1], "list")) {
       printf("loading\n");
