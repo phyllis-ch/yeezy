@@ -1,4 +1,4 @@
-yz: main.c yz.c
+yeezy: main.c yz.c
 	cc -Wall -Wextra -o yeezy main.c yz.c -lm
 
 install: yz
