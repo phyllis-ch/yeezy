@@ -1,7 +1,7 @@
 yeezy: main.c yz.c
 	cc -Wall -Wextra -o yeezy main.c yz.c -lm
 
-install: yz
+install: yeezy
 	mkdir -p /usr/local/bin
 	cp -f yeezy /usr/local/bin
 	chmod 755 /usr/local/bin/yeezy
