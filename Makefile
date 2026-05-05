@@ -1,15 +1,28 @@
-yeezy: main.c fuzzy.c
-	cc -Wall -Wextra -o yeezy main.c fuzzy.c
+PREFIX = /usr/local
 
-install: yeezy
-	mkdir -p /usr/local/bin
-	cp -f yeezy /usr/local/bin
-	chmod 755 /usr/local/bin/yeezy
+SRC = main.c fuzzy.c
+OBJ = ${SRC:.c=.o}
 
-uninstall:
-	rm -f /usr/local/bin/yeezy
+CC = cc
+CFLAGS = -std=c99 -Wall -Wextra
+
+all: yeezy
+
+.c.o:
+	${CC} -c ${CFLAGS} $<
+
+yeezy: ${OBJ}
+	${CC} -o $@ ${OBJ}
 
 clean:
-	rm -f ./yeezy
+	rm -f yeezy ${OBJ}
 
-.PHONY: yeezy install uninstall clean
+install: all
+	mkdir -p ${PREFIX}/bin
+	cp -f yeezy ${PREFIX}/bin
+	chmod 755 ${PREFIX}/bin/yeezy
+
+uninstall:
+	rm -f ${PREFIX}/bin/yeezy
+
+.PHONY: all yeezy clean install uninstall
