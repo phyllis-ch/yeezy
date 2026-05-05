@@ -7,7 +7,7 @@
 #define ENTRY_SIZE 256
 
 typedef struct {
-   char entry[ENTRY_SIZE];
+   char pathname[ENTRY_SIZE];
    double frequency_score;
 } Entry;
 
@@ -19,16 +19,21 @@ typedef struct {
 
 // Wrapper struct for pointer to Entry with score
 typedef struct {
-   Entry *name;
+   Entry *entry;
    double score;
    size_t db_index;
-} Scored_Entry;
+} Entry_Wrapper;
 
 typedef struct {
-   Scored_Entry *items;
+   Entry_Wrapper *items;
    size_t count;
    size_t capacity;
-} Scored_Entries;
+} Wrappers;
+
+typedef struct {
+   unsigned int hash;
+   Entry *ptr;
+} Node;
 
 #define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
 
