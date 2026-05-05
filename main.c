@@ -31,14 +31,14 @@ char *get_data_home(void) {
 
 double get_decayed_score(char *pattern, Entry entry, double decay) {
       double frequency = entry.frequency_score * decay;
-      int match = get_fzscore(pattern, entry.entry);
+      int match = get_fzscore(pattern, entry.pathname);
 
       return frequency * match;
 }
 
 int comp_with_matching(const void *a, const void *b) {
-   Scored_Entry *ea = (Scored_Entry *)a;
-   Scored_Entry *eb = (Scored_Entry *)b;
+   Entry_Wrapper *ea = (Entry_Wrapper *)a;
+   Entry_Wrapper *eb = (Entry_Wrapper *)b;
 
    if (eb->score < ea->score) return -1;
    if (eb->score > ea->score) return 1;
@@ -64,33 +64,25 @@ unsigned int hash(char *str) {
    return result;
 }
 
-typedef struct {
-   unsigned int hash;
-   Entry *ptr;
-} Node;
-
 void hm_push(Node *map, unsigned int hash_result, Entry *entry) {
    int idx = hash_result % 1024;
    map[idx].hash = hash_result;
    map[idx].ptr = entry;
 }
 
+// TODO: Implement remove entry command
+
 int main(int argc, char *argv[]) {
    parse_flags(argc, argv);
-
    const char *db_path = get_data_home();
    FILE *db = NULL;
-   int state;
 
    if (!strcmp(argv[1], "add")) {
       db = fopen(db_path, "a+b");
-      state = 1;
    } else if (!strcmp(argv[1], "query")) {
       db = fopen(db_path, "r+b");
-      state = 2;
    } else {
       db = fopen(db_path, "rb");
-      state = 3;
    }
 
    // Cache entries from db
@@ -107,37 +99,27 @@ int main(int argc, char *argv[]) {
       Node map[1024] = {0};
 
       for (size_t i = 0; i < arr.count; ++i)
-         hm_push(map, hash(arr.items[i].entry), &arr.items[i]);
+         hm_push(map, hash(arr.items[i].pathname), &arr.items[i]);
 
       // lookup
+      // TODO: make this shit useful
       int idx = hash(argv[2]) % 1024;
       if (!map[idx].ptr) {
          printf("empty\n");
          Entry new = {0};
-         snprintf(new.entry, ENTRY_SIZE, "%s", argv[2]);
+         snprintf(new.pathname, ENTRY_SIZE, "%s", argv[2]);
          new.frequency_score = 1;
          fwrite(&new, sizeof(Entry), 1, db);
          fflush(db);
       } else printf("full\n");
    }
 
-   // if (!strcmp(argv[1], "add")) {
-   //    if (!argv[2]) return 1;
-   //
-   //    printf("yesmama\n");
-   //
-   //    Entry new = {0};
-   //    snprintf(new.entry, ENTRY_SIZE, "%s", argv[2]);
-   //    new.frequency_score = 1;
-   //    fwrite(&new, sizeof(Entry), 1, db);
-   // }
-
    if (!strcmp(argv[1], "list")) {
       printf("loading\n");
 
       qsort(arr.items, arr.count, sizeof(Entry), comp_freq);
       for (size_t i = 0; i < arr.count; ++i) {
-         printf("%s -> %f\n", arr.items[i].entry, arr.items[i].frequency_score);
+         printf("%s -> %f\n", arr.items[i].pathname, arr.items[i].frequency_score);
       }
    }
 
@@ -147,35 +129,39 @@ int main(int argc, char *argv[]) {
       double decay = 0.95;
 
       // Filter cached entries
-      Scored_Entries filtered_arr = {0};
+      Wrappers filtered_arr = {0};
       for (size_t i = 0; i < arr.count; ++i) {
-         if (strstr(arr.items[i].entry, pattern)) {
+         if (strstr(arr.items[i].pathname, pattern)) {
             if (filtered_arr.count >= filtered_arr.capacity) {
                if (filtered_arr.capacity == 0) filtered_arr.capacity = 256;
                else filtered_arr.capacity *= 2;
                filtered_arr.items = realloc(filtered_arr.items, filtered_arr.capacity*sizeof(*filtered_arr.items));
             }
             filtered_arr.items[filtered_arr.count].db_index = i;
-            filtered_arr.items[filtered_arr.count++].name = &arr.items[i];
+            filtered_arr.items[filtered_arr.count++].entry = &arr.items[i];
          }
       }
 
       for (size_t i = 0; i < filtered_arr.count; ++i)
-         filtered_arr.items[i].score = get_decayed_score(argv[2], *filtered_arr.items[i].name, decay);
-      qsort(filtered_arr.items, filtered_arr.count, sizeof(Scored_Entry), comp_with_matching);
+         filtered_arr.items[i].score = get_decayed_score(argv[2], *filtered_arr.items[i].entry, decay);
+      qsort(filtered_arr.items, filtered_arr.count, sizeof(Entry_Wrapper), comp_with_matching);
 
+      Entry *chosen = filtered_arr.items[0].entry;
       // filtered_arr.items[0].name->frequency_score++;
       // printf("%s -> %f | Idx: %zu\n", filtered_arr.items[0].name->entry, filtered_arr.items[0].score, filtered_arr.items[0].db_index);
-      fprintf(stdout, "%s", filtered_arr.items[0].name->entry);
-      filtered_arr.items[0].name->frequency_score *= decay;
-      filtered_arr.items[0].name->frequency_score++;
+      fprintf(stdout, "%s", chosen->pathname);
+      chosen->frequency_score *= decay;
+      chosen->frequency_score++;
 
       // Update entry
       fseek(db, filtered_arr.items[0].db_index * sizeof(Entry), SEEK_SET);
-      fwrite(filtered_arr.items->name, sizeof(Entry), 1, db);
+      fwrite(filtered_arr.items->entry, sizeof(Entry), 1, db); // ???
       fflush(db);
+
+      free(filtered_arr.items);
    }
 
+   free(arr.items);
    fclose(db);
    return 0;
 }
