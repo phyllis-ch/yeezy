@@ -34,6 +34,18 @@ void db_add(FILE *db, char *str)
    fwrite(&new.last_visited, sizeof(time_t), 1, db);
 }
 
+void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx)
+{
+   if (strstr(arr->items[idx].pathname, pattern)) {
+      if (filtered_arr->count >= filtered_arr->capacity) {
+         if (filtered_arr->capacity == 0) filtered_arr->capacity = 256;
+         else filtered_arr->capacity *= 2;
+         filtered_arr->items = realloc(filtered_arr->items, filtered_arr->capacity*sizeof(*filtered_arr->items));
+      }
+      filtered_arr->items[filtered_arr->count++].entry = &arr->items[idx];
+   }
+}
+
 double get_decayed_score(char *pattern, Entry entry, double decay)
 {
       double frequency = entry.frecency_score * decay;
@@ -48,12 +60,12 @@ char *get_data_home(void)
    if (path) return path;
 
    path = getenv("HOME");
-   strcat(path, "/.local/share/yeezy.db");
+   strcat(path, "/.local/share/yeezy/yeezy.db");
 
    return path;
 }
 
-int comp_with_matching(const void *a, const void *b)
+int comp_score(const void *a, const void *b)
 {
    Entry_Wrapper *ea = (Entry_Wrapper *)a;
    Entry_Wrapper *eb = (Entry_Wrapper *)b;
@@ -78,78 +90,73 @@ int main(int argc, char *argv[])
 {
    parse_flags(argc, argv);
    const char *db_path = get_data_home();
-   FILE *db = NULL;
+   FILE *db = fopen(db_path, "rb");
+
+   Entries arr = {0};
+   Entry buf;
+   while (fread(&buf.pathname_len, sizeof(size_t), 1, db)) {
+      buf.pathname = malloc(sizeof(char)*buf.pathname_len);
+      fread(buf.pathname, sizeof(char), buf.pathname_len, db);
+      fread(&buf.frecency_score, sizeof(double), 1, db);
+      fread(&buf.last_visited, sizeof(time_t), 1, db);
+      buf.pathname[buf.pathname_len] = '\0';
+
+      da_append(arr, buf);
+   }
+
+   fclose(db);
 
    if (!strcmp(argv[1], "add")) {
       if (!argv[2]) return 1;
-      db = fopen(db_path, "a+b");
+      db = fopen(db_path, "ab");
       // TODO: hashmap
       db_add(db, argv[2]);
+
+      fclose(db);
    }
 
    if (!strcmp(argv[1], "query")) {
       if (!argv[2]) return 1;
-      db = fopen(db_path, "r+b");
-      char *pattern = argv[2];
       double decay = 0.95;
-
-      Entries arr = {0};
-      Entry buf;
-      while (fread(&buf.pathname_len, sizeof(size_t), 1, db)) {
-         buf.pathname = malloc(sizeof(char)*buf.pathname_len);
-         fread(buf.pathname, sizeof(char), buf.pathname_len, db);
-         fread(&buf.frecency_score, sizeof(double), 1, db);
-         fread(&buf.last_visited, sizeof(time_t), 1, db);
-
-         da_append(arr, buf);
-      }
 
       Wrappers filtered_arr = {0};
       for (size_t i = 0; i < arr.count; ++i) {
-         if (strstr(arr.items[i].pathname, pattern)) {
-            if (filtered_arr.count >= filtered_arr.capacity) {
-               if (filtered_arr.capacity == 0) filtered_arr.capacity = 256;
-               else filtered_arr.capacity *= 2;
-               filtered_arr.items = realloc(filtered_arr.items, filtered_arr.capacity*sizeof(*filtered_arr.items));
-            }
-            filtered_arr.items[filtered_arr.count].db_index = i;
-            filtered_arr.items[filtered_arr.count++].entry = &arr.items[i];
-         }
+         da_filter(&filtered_arr, &arr, argv[2], i);
+      }
+      if (!filtered_arr.count) {
+         fprintf(stderr, "Yeezy: no match found\n");
+         return 1;
       }
 
       for (size_t i = 0; i < filtered_arr.count; ++i)
          filtered_arr.items[i].score = get_decayed_score(argv[2], *filtered_arr.items[i].entry, decay);
-      qsort(filtered_arr.items, filtered_arr.count, sizeof(Entry_Wrapper), comp_with_matching);
+      qsort(filtered_arr.items, filtered_arr.count, sizeof(Entry_Wrapper), comp_score);
 
-      printf("%.*s -> %f | ", (int)filtered_arr.items[0].entry->pathname_len, filtered_arr.items[0].entry->pathname, filtered_arr.items[0].score);
-      printf("frecency: %f | time: %ld\n", filtered_arr.items[0].entry->frecency_score, filtered_arr.items[0].entry->last_visited);
+      Entry *chosen = filtered_arr.items->entry;
+      fprintf(stdout, "%s\n", chosen->pathname);
+      chosen->frecency_score *= decay;
+      chosen->frecency_score++;
 
-      free(arr.items);
+      db = fopen(db_path, "wb");
+      for (size_t i = 0; i < arr.count; ++i) {
+         fwrite(&arr.items[i].pathname_len, sizeof(size_t), 1, db);
+         fwrite(arr.items[i].pathname, sizeof(char), arr.items[i].pathname_len, db);
+         fwrite(&arr.items[i].frecency_score, sizeof(double), 1, db);
+         fwrite(&arr.items[i].last_visited, sizeof(time_t), 1, db);
+      }
+
       free(filtered_arr.items);
+      fclose(db);
    }
 
    if (!strcmp(argv[1], "list")) {
-      db = fopen(db_path, "rb");
-
-      Entries arr = {0};
-      Entry buf;
-      while (fread(&buf.pathname_len, sizeof(size_t), 1, db)) {
-         buf.pathname = malloc(sizeof(char)*buf.pathname_len);
-         fread(buf.pathname, sizeof(char), buf.pathname_len, db);
-         fread(&buf.frecency_score, sizeof(double), 1, db);
-         fread(&buf.last_visited, sizeof(time_t), 1, db);
-
-         da_append(arr, buf);
-      }
-
       for (size_t i = 0; i < arr.count; ++i) {
-         printf("%.*s -> %zu | ", (int)arr.items[i].pathname_len, arr.items[i].pathname, arr.items[i].pathname_len);
+         printf("%s -> %zu | ", arr.items[i].pathname, arr.items[i].pathname_len);
          printf("score: %f | time: %ld\n", arr.items[i].frecency_score, arr.items[i].last_visited);
       }
 
-      free(arr.items);
    }
 
-   fclose(db);
+   free(arr.items);
    return 0;
 }
