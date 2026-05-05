@@ -1,45 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-
-#define da_append(xs, x)\
-   do {\
-      if (xs.count >= xs.capacity) {\
-         if (xs.capacity == 0) xs.capacity = 256;\
-         else xs.capacity *= 2;\
-         xs.items = realloc(xs.items, xs.capacity*sizeof(*xs.items));\
-      }\
-      xs.items[xs.count++] = x;\
-   } while(0)
-
-typedef struct {
-   char *pathname;
-   size_t pathname_len;
-   double frecency_score;
-   time_t last_visited;
-} Entry;
-
-typedef struct {
-   Entry *items;
-   size_t count;
-   size_t capacity;
-} Entries;
-
-// Wrapper struct for pointer to Entry with score
-typedef struct {
-   Entry *entry;
-   double score;
-   size_t db_index;
-} Entry_Wrapper;
-
-typedef struct {
-   Entry_Wrapper *items;
-   size_t count;
-   size_t capacity;
-} Wrappers;
-
+#include "yz.h"
 
 void parse_flags(int argc, char *argv[])
 {
@@ -75,44 +34,8 @@ void db_add(FILE *db, char *str)
    fwrite(&new.last_visited, sizeof(time_t), 1, db);
 }
 
-int match_seperator(char c)
+double get_decayed_score(char *pattern, Entry entry, double decay)
 {
-   return c == '/' || c == '_' || c == '-' || c == ' ' || c == '.';
-}
-
-int get_fzscore(const char *pattern, const char *text)
-{
-   int score = 0;
-   int pi = 0; // pattern index
-   int consecutive_matches = 0;
-   int first_match = -1;
-
-   for (int ti = 0; text[ti] != '\0'; ++ti) {
-      if (pattern[pi] == '\0') break; // premature exit
-
-      if (tolower(text[ti]) == tolower(pattern[pi])) {
-         if (first_match == -1) first_match = ti; // record text index of first match
-
-         score += 10; // match
-         score -= strlen(text);
-         if (consecutive_matches > 0) score += 15;
-         if (ti == 0 || match_seperator(text[ti - 1])) score += 20;
-
-         consecutive_matches++;
-         pi++;
-      } else {
-         score -= 1;
-         consecutive_matches = 0;
-      }
-   }
-
-   if (pattern[pi]) return -65536;  // No complete match for entire pattern
-   if (first_match > 0) score -= first_match;  // Late first match
-
-   return score;
-}
-
-double get_decayed_score(char *pattern, Entry entry, double decay) {
       double frequency = entry.frecency_score * decay;
       int match = get_fzscore(pattern, entry.pathname);
 
@@ -130,7 +53,8 @@ char *get_data_home(void)
    return path;
 }
 
-int comp_with_matching(const void *a, const void *b) {
+int comp_with_matching(const void *a, const void *b)
+{
    Entry_Wrapper *ea = (Entry_Wrapper *)a;
    Entry_Wrapper *eb = (Entry_Wrapper *)b;
 
@@ -139,7 +63,8 @@ int comp_with_matching(const void *a, const void *b) {
    return 0;
 }
 
-int comp_freq(const void *a, const void *b) {
+int comp_freq(const void *a, const void *b)
+{
    Entry *ea = (Entry *)a;
    Entry *eb = (Entry *)b;
 
@@ -152,7 +77,7 @@ int comp_freq(const void *a, const void *b) {
 int main(int argc, char *argv[])
 {
    parse_flags(argc, argv);
-   const char *db_path = "./db";
+   const char *db_path = get_data_home();
    FILE *db = NULL;
 
    if (!strcmp(argv[1], "add")) {
