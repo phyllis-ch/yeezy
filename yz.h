@@ -2,13 +2,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <math.h>
-
-#define ENTRY_SIZE 256
+#include <time.h>
 
 typedef struct {
-   char pathname[ENTRY_SIZE];
-   double frequency_score;
+   char *pathname;
+   size_t pathname_len;
+   double frecency_score;
+   time_t last_visited;
 } Entry;
 
 typedef struct {
@@ -35,8 +35,6 @@ typedef struct {
    Entry *ptr;
 } Node;
 
-#define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
-
 #define da_append(xs, x)\
    do {\
       if (xs.count >= xs.capacity) {\
@@ -47,5 +45,11 @@ typedef struct {
       xs.items[xs.count++] = x;\
    } while(0)
 
+void parse_flags(int argc, char *argv[]);
+void db_add(FILE *db, char *str);
 int match_seperator(char c);
 int get_fzscore(const char *pattern, const char *text);
+double get_decayed_score(char *pattern, Entry entry, double decay);
+char *get_data_home(void);
+int comp_with_matching(const void *a, const void *b);
+int comp_freq(const void *a, const void *b);
