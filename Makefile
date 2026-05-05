@@ -1,5 +1,5 @@
 yeezy: main.c fuzzy.c
-	cc -Wall -Wextra -o yeezy main.c fuzzy.c -lm
+	cc -Wall -Wextra -o yeezy main.c fuzzy.c
 
 install: yeezy
 	mkdir -p /usr/local/bin
