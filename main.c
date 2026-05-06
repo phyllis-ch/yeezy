@@ -93,32 +93,38 @@ int main(int argc, char *argv[])
    FILE *db = fopen(db_path, "rb");
 
    Entries arr = {0};
-   Entry buf;
-   while (fread(&buf.pathname_len, sizeof(size_t), 1, db)) {
-      buf.pathname = malloc(sizeof(char)*buf.pathname_len);
-      fread(buf.pathname, sizeof(char), buf.pathname_len, db);
-      fread(&buf.frecency_score, sizeof(double), 1, db);
-      fread(&buf.last_visited, sizeof(time_t), 1, db);
-      buf.pathname[buf.pathname_len] = '\0';
+   if (db) {
+      Entry buf;
+      while (fread(&buf.pathname_len, sizeof(size_t), 1, db)) {
+         buf.pathname = malloc(buf.pathname_len + 1);
+         fread(buf.pathname, sizeof(char), buf.pathname_len, db);
+         fread(&buf.frecency_score, sizeof(double), 1, db);
+         fread(&buf.last_visited, sizeof(time_t), 1, db);
+         buf.pathname[buf.pathname_len] = '\0';
 
-      da_append(arr, buf);
-   }
-
-   fclose(db);
-
-   if (!strcmp(argv[1], "add")) {
-      if (!argv[2]) return 1;
-      db = fopen(db_path, "ab");
-      // TODO: hashmap
-      db_add(db, argv[2]);
+         da_append(arr, buf);
+      }
 
       fclose(db);
    }
 
    if (!strcmp(argv[1], "query")) {
       if (!argv[2]) return 1;
+
+      // Check for backslash for relative path mode
+      if (strrchr(argv[2], '/')) {
+         char *bs_ptr = strrchr(argv[2], '/');
+
+         // TODO: In future, implement cd's direct path behaviour
+         if (*(bs_ptr+1) == '\0') {
+            printf("%s\n", argv[2]);
+            return 0;
+         }
+      }
+
       double decay = 0.95;
 
+      // Filter database entries
       Wrappers filtered_arr = {0};
       for (size_t i = 0; i < arr.count; ++i) {
          da_filter(&filtered_arr, &arr, argv[2], i);
@@ -149,7 +155,18 @@ int main(int argc, char *argv[])
       fclose(db);
    }
 
+   if (!strcmp(argv[1], "add")) {
+      if (!argv[2]) return 1;
+      db = fopen(db_path, "ab");
+      // TODO: hashmap
+      db_add(db, argv[2]);
+
+      fclose(db);
+   }
+
    if (!strcmp(argv[1], "list")) {
+      qsort(arr.items, arr.count, sizeof(Entry), comp_freq);
+
       for (size_t i = 0; i < arr.count; ++i) {
          printf("%s -> %zu | ", arr.items[i].pathname, arr.items[i].pathname_len);
          printf("score: %f | time: %ld\n", arr.items[i].frecency_score, arr.items[i].last_visited);
