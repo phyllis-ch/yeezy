@@ -3,6 +3,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
+#include <assert.h>
 
 typedef struct {
    char *pathname;
@@ -21,7 +22,6 @@ typedef struct {
 typedef struct {
    Entry *entry;
    double score;
-   size_t db_index;
 } Entry_Wrapper;
 
 typedef struct {
@@ -48,8 +48,8 @@ typedef struct {
 void parse_flags(int argc, char *argv[]);
 void db_add(FILE *db, char *str);
 int match_seperator(char c);
-int get_fzscore(const char *pattern, const char *text);
+int get_fzscore(const char *pattern, char *text);
 double get_decayed_score(char *pattern, Entry entry, double decay);
 char *get_data_home(void);
-int comp_with_matching(const void *a, const void *b);
+int comp_score(const void *a, const void *b);
 int comp_freq(const void *a, const void *b);
