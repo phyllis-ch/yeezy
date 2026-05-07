@@ -116,6 +116,53 @@ int check_special_paths(char *argv[])
    return 0;
 }
 
+int cmd_add(FILE *db, const char *db_path, char *argv[], Entries arr)
+{
+      if (!argv[2]) return 1;
+
+      if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
+         char *bs_ptr = strrchr(argv[2], '/');
+         if (*(bs_ptr+1) == '\0') {
+            *bs_ptr='\0';
+         }
+      }
+
+      db = fopen(db_path, "ab");
+      // TODO: hashmap
+      db_add(db, argv[2]);
+
+      fclose(db);
+
+      return 0;
+}
+
+int cmd_list(FILE *db, const char *db_path, char *argv[], Entries arr)
+{
+   (void)db;
+   (void)db_path;
+   (void)argv;
+
+   qsort(arr.items, arr.count, sizeof(Entry), comp_freq);
+
+   for (size_t i = 0; i < arr.count; ++i) {
+      printf("%s -> %zu | ", arr.items[i].pathname, arr.items[i].pathname_len);
+      printf("score: %f | time: %ld\n", arr.items[i].frecency_score, arr.items[i].last_visited);
+   }
+
+   return 0;
+}
+
+typedef struct {
+   char * fn_name;
+   int (*fn_ptr)(FILE *db, const char *db_path, char *argv[], Entries arr);
+} Commands_arr;
+
+Commands_arr commands[] = {
+   {"add", cmd_add},
+   {"list", cmd_list},
+   // {"query", cmd_query},
+};
+
 
 int main(int argc, char *argv[])
 {
@@ -137,6 +184,7 @@ int main(int argc, char *argv[])
       }
 
       fclose(db);
+      db = NULL;
    }
 
    if (!strcmp(argv[1], "query")) {
@@ -173,37 +221,17 @@ int main(int argc, char *argv[])
       }
 
       free(filtered_arr.items);
-      fclose(db);
    }
 
-   if (!strcmp(argv[1], "add")) {
-      if (!argv[2]) return 1;
-
-      if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
-         char *bs_ptr = strrchr(argv[2], '/');
-         if (*(bs_ptr+1) == '\0') {
-            *bs_ptr='\0';
-         }
-      }
-
-      db = fopen(db_path, "ab");
-      // TODO: hashmap
-      db_add(db, argv[2]);
-
-      fclose(db);
-   }
-
-   if (!strcmp(argv[1], "list")) {
-      qsort(arr.items, arr.count, sizeof(Entry), comp_freq);
-
-      for (size_t i = 0; i < arr.count; ++i) {
-         printf("%s -> %zu | ", arr.items[i].pathname, arr.items[i].pathname_len);
-         printf("score: %f | time: %ld\n", arr.items[i].frecency_score, arr.items[i].last_visited);
+   for (int i = 0; i < ARR_COUNT(commands); ++i) {
+      if (!strcmp(argv[1], commands[i].fn_name)) {
+         commands[i].fn_ptr(db, db_path, argv, arr);
       }
    }
 
 premature_exit:
    free(arr.items);
+   if (db) free(db);
 
    return 0;
 }
