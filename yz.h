@@ -48,20 +48,28 @@ typedef struct {
    } while(0)
 
 // main
-void parse_flags(int argc, char *argv[]);
-void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx);
-double get_decayed_score(char *pattern, Entry entry, double decay);
-char *get_data_home(void);
+int parse_flags(int argc, char *argv[]);
 int comp_score(const void *a, const void *b);
 int comp_freq(const void *a, const void *b);
+int check_special_paths(char *argv[]);
+int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries);
+int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries);
+int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries);
+double get_decayed_score(char *pattern, Entry *entry, double decay);
+char *get_data_home(void);
+void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern);
 
 // db
 void db_write(FILE *db, Entry *entry);
 void db_read(FILE *db, Entries *arr);
-void db_add(FILE *db, char *str);
+void db_append(FILE *db, char *str);
 
 // fuzzy
 char *get_basename(char *text);
 int match_seperator(char c);
 int get_basescore(const char *pattern, char *text);
 int get_fzscore(const char *pattern, char *text);
+
+// hashmap
+unsigned int hash(char *str);
+void hm_push(Node *map, unsigned int hash_result, Entry *entry);
