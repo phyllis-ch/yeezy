@@ -56,13 +56,13 @@ double get_decayed_score(char *pattern, Entry entry, double decay)
 
 char *get_data_home(void)
 {
-   char *path = getenv("XDG_DATA_HOME");
-   if (path) return path;
+   char *str = getenv("XDG_DATA_HOME");
+   if (str) return str;
 
-   path = getenv("HOME");
-   strcat(path, "/.local/share/yeezy/yeezy.db");
+   str = getenv("HOME");
+   strcat(str, "/.local/share/yeezy/yeezy.db");
 
-   return path;
+   return str;
 }
 
 int comp_score(const void *a, const void *b)
@@ -82,6 +82,37 @@ int comp_freq(const void *a, const void *b)
 
    if (eb->frecency_score < ea->frecency_score) return -1;
    if (eb->frecency_score > ea->frecency_score) return 1;
+   return 0;
+}
+
+int check_special_paths(char *argv[])
+{
+   // TODO: maybe use switch cases in future
+   if (!strcmp(argv[2], ".")) {
+      printf("%s\n", argv[2]);
+      return 1;
+   }
+
+   if (!strcmp(argv[2], "..")) {
+      printf("%s\n", argv[2]);
+      return 1;
+   }
+
+   if (!strcmp(argv[2], "-")) {
+      printf("%s\n", getenv("OLDPWD"));
+      return 1;
+   }
+
+   if (strrchr(argv[2], '/')) {  /* Check for backslash for relative path mode */
+      char *bs_ptr = strrchr(argv[2], '/');
+
+      // TODO: In future, implement cd's direct path behaviour
+      if (*(bs_ptr+1) == '\0') {
+         printf("%s\n", argv[2]);
+         return 1;
+      }
+   }
+
    return 0;
 }
 
@@ -110,22 +141,12 @@ int main(int argc, char *argv[])
 
    if (!strcmp(argv[1], "query")) {
       if (!argv[2]) return 1;
-
-      // Check for backslash for relative path mode
-      if (strrchr(argv[2], '/')) {
-         char *bs_ptr = strrchr(argv[2], '/');
-
-         // TODO: In future, implement cd's direct path behaviour
-         if (*(bs_ptr+1) == '\0') {
-            printf("%s\n", argv[2]);
-            return 0;
-         }
-      }
+      if (check_special_paths(argv))
+         goto premature_exit;
 
       double decay = 0.95;
 
-      // Filter database entries
-      Wrappers filtered_arr = {0};
+      Wrappers filtered_arr = {0};  /* Filter database entries */
       for (size_t i = 0; i < arr.count; ++i) {
          da_filter(&filtered_arr, &arr, argv[2], i);
       }
@@ -157,6 +178,14 @@ int main(int argc, char *argv[])
 
    if (!strcmp(argv[1], "add")) {
       if (!argv[2]) return 1;
+
+      if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
+         char *bs_ptr = strrchr(argv[2], '/');
+         if (*(bs_ptr+1) == '\0') {
+            *bs_ptr='\0';
+         }
+      }
+
       db = fopen(db_path, "ab");
       // TODO: hashmap
       db_add(db, argv[2]);
@@ -171,9 +200,10 @@ int main(int argc, char *argv[])
          printf("%s -> %zu | ", arr.items[i].pathname, arr.items[i].pathname_len);
          printf("score: %f | time: %ld\n", arr.items[i].frecency_score, arr.items[i].last_visited);
       }
-
    }
 
+premature_exit:
    free(arr.items);
+
    return 0;
 }
