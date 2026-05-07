@@ -27,7 +27,7 @@ void db_read(FILE *db, Entries *entries)
    }
 }
 
-void db_add(FILE *db, char *str)
+void db_append(FILE *db, char *str)
 {
    Entry new;
    new.pathname = str;
