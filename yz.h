@@ -49,15 +49,19 @@ typedef struct {
 
 // main
 void parse_flags(int argc, char *argv[]);
-void db_add(FILE *db, char *str);
 void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx);
 double get_decayed_score(char *pattern, Entry entry, double decay);
 char *get_data_home(void);
 int comp_score(const void *a, const void *b);
 int comp_freq(const void *a, const void *b);
 
+// db
+void db_write(FILE *db, Entry *entry);
+void db_read(FILE *db, Entries *arr);
+void db_add(FILE *db, char *str);
+
 // fuzzy
-int match_seperator(char c);
 char *get_basename(char *text);
+int match_seperator(char c);
 int get_basescore(const char *pattern, char *text);
 int get_fzscore(const char *pattern, char *text);
