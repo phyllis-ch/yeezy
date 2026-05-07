@@ -35,6 +35,8 @@ typedef struct {
    Entry *ptr;
 } Node;
 
+#define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
+
 #define da_append(xs, x)\
    do {\
       if (xs.count >= xs.capacity) {\
