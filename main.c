@@ -1,5 +1,16 @@
 #include "yz.h"
 
+typedef struct {
+   char * fn_name;
+   int (*fn_ptr)(FILE *, const char *, char **, Entries);
+} Commands;
+
+Commands commands[] = {
+   {"query", cmd_query},
+   {"add", cmd_add},
+   {"list", cmd_list},
+};
+
 int parse_flags(int argc, char *argv[])
 {
    if (argc < 2) {
@@ -60,10 +71,15 @@ int check_special_paths(char *argv[])
       return 1;
    }
 
+   if (*argv[2] == '/') {
+      printf("%s\n", argv[2]);
+      return 1;
+   }
+
    if (strrchr(argv[2], '/')) {  /* Check for backslash for relative path mode */
       char *bs_ptr = strrchr(argv[2], '/');
 
-      // TODO: In future, implement cd's direct path behaviour
+      // TODO: In future, implement cd's absolute path behaviour
       if (*(bs_ptr+1) == '\0') {
          printf("%s\n", argv[2]);
          return 1;
@@ -77,7 +93,6 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
    if (!argv[2]) return 1;
    if (check_special_paths(argv)) {
-      free(entries.items);
       if (db) fclose(db);
       return 0;
    }
@@ -113,22 +128,42 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
 
 int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
-      if (!argv[2]) return 1;
+   if (!argv[2]) return 1;
+   double decay = 0.95;
 
-      if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
-         char *bs_ptr = strrchr(argv[2], '/');
-         if (*(bs_ptr+1) == '\0') {
-            *bs_ptr='\0';
-         }
+   if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
+      char *bs_ptr = strrchr(argv[2], '/');
+      if (*(bs_ptr+1) == '\0') {
+         *bs_ptr='\0';
       }
+   }
 
+   /* First implementation of hashmap */
+   Node map[1024] = {0};
+   for (size_t i = 0; i < entries.count; ++i)
+      hm_push(map, hash(entries.items[i].pathname), &entries.items[i]);
+
+   // for (size_t i = 0; i < 1024; ++i) {
+   //    if (map[i].hash != 0) printf("%s -> %u\n", map[i].ptr->pathname, map[i].hash % 1024);
+   // }
+
+   unsigned int idx = hash(argv[2]) % 1024;
+   if (!map[idx].ptr) {
       db = fopen(db_path, "ab");
-      // TODO: hashmap
       db_append(db, argv[2]);
+   }
+   else {
+      map[idx].ptr->frecency_score *= decay;
+      map[idx].ptr->frecency_score++;
 
-      fclose(db);
+      db = fopen(db_path, "wb");
+      for (size_t i = 0; i < entries.count; ++i) {
+         db_write(db, &entries.items[i]);
+      }
+   }
 
-      return 0;
+   fclose(db);
+   return 0;
 }
 
 int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
@@ -178,17 +213,6 @@ void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern)
    }
 }
 
-typedef struct {
-   char * fn_name;
-   int (*fn_ptr)(FILE *, const char *, char **, Entries);
-} Commands_arr;
-
-Commands_arr commands[] = {
-   {"query", cmd_query},
-   {"add", cmd_add},
-   {"list", cmd_list},
-};
-
 
 int main(int argc, char *argv[])
 {
@@ -197,20 +221,21 @@ int main(int argc, char *argv[])
    const char *db_path = get_data_home();
    FILE *db = fopen(db_path, "rb");
 
-   Entries arr = {0};
+   Entries entries = {0};
    if (db) {
-      db_read(db, &arr);
+      db_read(db, &entries);
       fclose(db);
       db = NULL;
    }
 
    for (int i = 0; i < ARR_COUNT(commands); ++i) {
       if (!strcmp(argv[1], commands[i].fn_name)) {
-         commands[i].fn_ptr(db, db_path, argv, arr);
+         int status = commands[i].fn_ptr(db, db_path, argv, entries);
+         if (!status) break; /* Do error handling later */
       }
    }
 
-   free(arr.items);
+   if (entries.items) free(entries.items);
    if (db) fclose(db);
    return 0;
 }
