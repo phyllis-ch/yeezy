@@ -1,11 +1,5 @@
 #include "yz.h"
 
-// check for seperators in a base filename e.g. my_file.py
-int match_seperator(char c)
-{
-   return c == '/' || c == '_' || c == '-' || c == ' ' || c == '.';
-}
-
 char *get_basename(char *text)
 {
    char *s = text;
@@ -13,6 +7,12 @@ char *get_basename(char *text)
    assert(*s != '\0');
 
    return s;
+}
+
+// check for seperators in a base filename e.g. my_file.py
+int match_seperator(char c)
+{
+   return c == '/' || c == '_' || c == '-' || c == ' ' || c == '.';
 }
 
 int get_basescore(const char *pattern, char *text)
