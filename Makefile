@@ -5,6 +5,7 @@ OBJ = ${SRC:.c=.o}
 
 CC = cc
 CFLAGS = -std=c99 -Wall -Wextra
+LDFLAGS = -lm
 
 all: yeezy
 
@@ -12,7 +13,7 @@ all: yeezy
 	${CC} -c ${CFLAGS} $<
 
 yeezy: ${OBJ}
-	${CC} -o $@ ${OBJ}
+	${CC} -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
 	rm -f yeezy ${OBJ}
