@@ -45,11 +45,17 @@ typedef struct {
       xs.items[xs.count++] = x;\
    } while(0)
 
+// main
 void parse_flags(int argc, char *argv[]);
 void db_add(FILE *db, char *str);
-int match_seperator(char c);
-int get_fzscore(const char *pattern, char *text);
+void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx);
 double get_decayed_score(char *pattern, Entry entry, double decay);
 char *get_data_home(void);
 int comp_score(const void *a, const void *b);
 int comp_freq(const void *a, const void *b);
+
+// fuzzy
+int match_seperator(char c);
+char *get_basename(char *text);
+int get_basescore(const char *pattern, char *text);
+int get_fzscore(const char *pattern, char *text);
