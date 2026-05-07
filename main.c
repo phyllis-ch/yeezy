@@ -1,11 +1,11 @@
 #include "yz.h"
 
-void parse_flags(int argc, char *argv[])
+int parse_flags(int argc, char *argv[])
 {
    if (argc < 2) {
       fprintf(stderr, "Usage: %s [-h] [command] [<args>]\n", argv[0]);
       fprintf(stderr, "Missing command and arguments\n");
-      exit(69);
+      return 69;
    }
 
    if (!strcmp(argv[1], "-h") || !strcmp(argv[1], "--help")) {
@@ -16,39 +16,10 @@ void parse_flags(int argc, char *argv[])
       printf("    list           List all entries in the database\n");
       printf("Options:\n");
       printf("    -h, --help     Print help and exit.\n");
-      exit(0);
+      return 1;
    }
-}
 
-void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx)
-{
-   if (strstr(arr->items[idx].pathname, pattern)) {
-      if (filtered_arr->count >= filtered_arr->capacity) {
-         if (filtered_arr->capacity == 0) filtered_arr->capacity = 256;
-         else filtered_arr->capacity *= 2;
-         filtered_arr->items = realloc(filtered_arr->items, filtered_arr->capacity*sizeof(*filtered_arr->items));
-      }
-      filtered_arr->items[filtered_arr->count++].entry = &arr->items[idx];
-   }
-}
-
-double get_decayed_score(char *pattern, Entry entry, double decay)
-{
-   double frequency = entry.frecency_score * decay;
-   int match = get_fzscore(pattern, entry.pathname);
-
-   return frequency * match;
-}
-
-char *get_data_home(void)
-{
-   char *str = getenv("XDG_DATA_HOME");
-   if (str) return str;
-
-   str = getenv("HOME");
-   strcat(str, "/.local/share/yeezy/yeezy.db");
-
-   return str;
+   return 0;
 }
 
 int comp_score(const void *a, const void *b)
@@ -114,7 +85,7 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
    double decay = 0.95;
    Wrappers filtered_entries = {0};  /* Filter database entries */
    for (size_t i = 0; i < entries.count; ++i) {
-      da_filter(&filtered_entries, &entries, argv[2], i);
+      da_filter(&filtered_entries, &entries.items[i], argv[2]);
    }
    if (!filtered_entries.count) {
       fprintf(stderr, "Yeezy: no match found\n");
@@ -122,7 +93,7 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
    }
 
    for (size_t i = 0; i < filtered_entries.count; ++i)
-      filtered_entries.items[i].score = get_decayed_score(argv[2], *filtered_entries.items[i].entry, decay);
+      filtered_entries.items[i].score = get_decayed_score(argv[2], filtered_entries.items[i].entry, decay);
    qsort(filtered_entries.items, filtered_entries.count, sizeof(Entry_Wrapper), comp_score);
 
    Entry *chosen = filtered_entries.items->entry;
@@ -135,6 +106,7 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
       db_write(db, &entries.items[i]);
    }
 
+   fclose(db);
    free(filtered_entries.items);
    return 0;
 }
@@ -152,7 +124,7 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 
       db = fopen(db_path, "ab");
       // TODO: hashmap
-      db_add(db, argv[2]);
+      db_append(db, argv[2]);
 
       fclose(db);
 
@@ -175,6 +147,37 @@ int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
    return 0;
 }
 
+double get_decayed_score(char *pattern, Entry *entry, double decay)
+{
+   double frequency = entry->frecency_score * decay;
+   int match = get_fzscore(pattern, entry->pathname);
+
+   return frequency * match;
+}
+
+char *get_data_home(void)
+{
+   char *str = getenv("XDG_DATA_HOME");
+   if (str) return str;
+
+   str = getenv("HOME");
+   strcat(str, "/.local/share/yeezy/yeezy.db");
+
+   return str;
+}
+
+void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern)
+{
+   if (strstr(entry->pathname, pattern)) {
+      if (filtered_entries->count >= filtered_entries->capacity) {
+         if (filtered_entries->capacity == 0) filtered_entries->capacity = 256;
+         else filtered_entries->capacity *= 2;
+         filtered_entries->items = realloc(filtered_entries->items, filtered_entries->capacity*sizeof(*filtered_entries->items));
+      }
+      filtered_entries->items[filtered_entries->count++].entry = entry;
+   }
+}
+
 typedef struct {
    char * fn_name;
    int (*fn_ptr)(FILE *, const char *, char **, Entries);
@@ -189,7 +192,8 @@ Commands_arr commands[] = {
 
 int main(int argc, char *argv[])
 {
-   parse_flags(argc, argv);
+   int ret_int = parse_flags(argc, argv);
+   if (ret_int) return ret_int;
    const char *db_path = get_data_home();
    FILE *db = fopen(db_path, "rb");
 
