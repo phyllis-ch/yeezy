@@ -20,20 +20,6 @@ void parse_flags(int argc, char *argv[])
    }
 }
 
-void db_add(FILE *db, char *str)
-{
-   Entry new;
-   new.pathname = str;
-   new.pathname_len = strlen(str);
-   new.last_visited = time(NULL);
-   new.frecency_score = 1;
-
-   fwrite(&new.pathname_len, sizeof(size_t), 1, db);
-   fwrite(new.pathname, sizeof(char), new.pathname_len, db);
-   fwrite(&new.frecency_score, sizeof(double), 1, db);
-   fwrite(&new.last_visited, sizeof(time_t), 1, db);
-}
-
 void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx)
 {
    if (strstr(arr->items[idx].pathname, pattern)) {
@@ -48,10 +34,10 @@ void da_filter(Wrappers *filtered_arr, Entries *arr, char *pattern, size_t idx)
 
 double get_decayed_score(char *pattern, Entry entry, double decay)
 {
-      double frequency = entry.frecency_score * decay;
-      int match = get_fzscore(pattern, entry.pathname);
+   double frequency = entry.frecency_score * decay;
+   int match = get_fzscore(pattern, entry.pathname);
 
-      return frequency * match;
+   return frequency * match;
 }
 
 char *get_data_home(void)
@@ -116,7 +102,44 @@ int check_special_paths(char *argv[])
    return 0;
 }
 
-int cmd_add(FILE *db, const char *db_path, char *argv[], Entries arr)
+int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
+{
+   if (!argv[2]) return 1;
+   if (check_special_paths(argv)) {
+      free(entries.items);
+      if (db) fclose(db);
+      return 0;
+   }
+
+   double decay = 0.95;
+   Wrappers filtered_entries = {0};  /* Filter database entries */
+   for (size_t i = 0; i < entries.count; ++i) {
+      da_filter(&filtered_entries, &entries, argv[2], i);
+   }
+   if (!filtered_entries.count) {
+      fprintf(stderr, "Yeezy: no match found\n");
+      return 1;
+   }
+
+   for (size_t i = 0; i < filtered_entries.count; ++i)
+      filtered_entries.items[i].score = get_decayed_score(argv[2], *filtered_entries.items[i].entry, decay);
+   qsort(filtered_entries.items, filtered_entries.count, sizeof(Entry_Wrapper), comp_score);
+
+   Entry *chosen = filtered_entries.items->entry;
+   fprintf(stdout, "%s\n", chosen->pathname);
+   chosen->frecency_score *= decay;
+   chosen->frecency_score++;
+
+   db = fopen(db_path, "wb");
+   for (size_t i = 0; i < entries.count; ++i) {
+      db_write(db, &entries.items[i]);
+   }
+
+   free(filtered_entries.items);
+   return 0;
+}
+
+int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
       if (!argv[2]) return 1;
 
@@ -136,17 +159,17 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries arr)
       return 0;
 }
 
-int cmd_list(FILE *db, const char *db_path, char *argv[], Entries arr)
+int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
    (void)db;
    (void)db_path;
    (void)argv;
 
-   qsort(arr.items, arr.count, sizeof(Entry), comp_freq);
+   qsort(entries.items, entries.count, sizeof(Entry), comp_freq);
 
-   for (size_t i = 0; i < arr.count; ++i) {
-      printf("%s -> %zu | ", arr.items[i].pathname, arr.items[i].pathname_len);
-      printf("score: %f | time: %ld\n", arr.items[i].frecency_score, arr.items[i].last_visited);
+   for (size_t i = 0; i < entries.count; ++i) {
+      printf("%s -> %zu | ", entries.items[i].pathname, entries.items[i].pathname_len);
+      printf("score: %f | time: %ld\n", entries.items[i].frecency_score, entries.items[i].last_visited);
    }
 
    return 0;
@@ -154,13 +177,13 @@ int cmd_list(FILE *db, const char *db_path, char *argv[], Entries arr)
 
 typedef struct {
    char * fn_name;
-   int (*fn_ptr)(FILE *db, const char *db_path, char *argv[], Entries arr);
+   int (*fn_ptr)(FILE *, const char *, char **, Entries);
 } Commands_arr;
 
 Commands_arr commands[] = {
+   {"query", cmd_query},
    {"add", cmd_add},
    {"list", cmd_list},
-   // {"query", cmd_query},
 };
 
 
@@ -172,55 +195,9 @@ int main(int argc, char *argv[])
 
    Entries arr = {0};
    if (db) {
-      Entry buf;
-      while (fread(&buf.pathname_len, sizeof(size_t), 1, db)) {
-         buf.pathname = malloc(buf.pathname_len + 1);
-         fread(buf.pathname, sizeof(char), buf.pathname_len, db);
-         fread(&buf.frecency_score, sizeof(double), 1, db);
-         fread(&buf.last_visited, sizeof(time_t), 1, db);
-         buf.pathname[buf.pathname_len] = '\0';
-
-         da_append(arr, buf);
-      }
-
+      db_read(db, &arr);
       fclose(db);
       db = NULL;
-   }
-
-   if (!strcmp(argv[1], "query")) {
-      if (!argv[2]) return 1;
-      if (check_special_paths(argv))
-         goto premature_exit;
-
-      double decay = 0.95;
-
-      Wrappers filtered_arr = {0};  /* Filter database entries */
-      for (size_t i = 0; i < arr.count; ++i) {
-         da_filter(&filtered_arr, &arr, argv[2], i);
-      }
-      if (!filtered_arr.count) {
-         fprintf(stderr, "Yeezy: no match found\n");
-         return 1;
-      }
-
-      for (size_t i = 0; i < filtered_arr.count; ++i)
-         filtered_arr.items[i].score = get_decayed_score(argv[2], *filtered_arr.items[i].entry, decay);
-      qsort(filtered_arr.items, filtered_arr.count, sizeof(Entry_Wrapper), comp_score);
-
-      Entry *chosen = filtered_arr.items->entry;
-      fprintf(stdout, "%s\n", chosen->pathname);
-      chosen->frecency_score *= decay;
-      chosen->frecency_score++;
-
-      db = fopen(db_path, "wb");
-      for (size_t i = 0; i < arr.count; ++i) {
-         fwrite(&arr.items[i].pathname_len, sizeof(size_t), 1, db);
-         fwrite(arr.items[i].pathname, sizeof(char), arr.items[i].pathname_len, db);
-         fwrite(&arr.items[i].frecency_score, sizeof(double), 1, db);
-         fwrite(&arr.items[i].last_visited, sizeof(time_t), 1, db);
-      }
-
-      free(filtered_arr.items);
    }
 
    for (int i = 0; i < ARR_COUNT(commands); ++i) {
@@ -229,9 +206,7 @@ int main(int argc, char *argv[])
       }
    }
 
-premature_exit:
    free(arr.items);
-   if (db) free(db);
-
+   if (db) fclose(db);
    return 0;
 }
