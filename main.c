@@ -11,6 +11,7 @@ Commands commands[] = {
    {"query", cmd_query},
    {"add", cmd_add},
    {"list", cmd_list},
+   // {"remove", cmd_remove},
 };
 
 int parse_flags(int argc, char *argv[])
@@ -106,15 +107,14 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
       return 1;
    }
 
-   double decay = 0.95;
    for (size_t i = 0; i < filtered_entries.count; ++i)
-      filtered_entries.items[i].score = get_decayed_score(argv[2], filtered_entries.items[i].entry, decay);
+      filtered_entries.items[i].score = get_decayed_score(argv[2], filtered_entries.items[i].entry, time(NULL));
    qsort(filtered_entries.items, filtered_entries.count, sizeof(Entry_Wrapper), comp_score);
 
    Entry *chosen = filtered_entries.items->entry;
    fprintf(stdout, "%s\n", chosen->pathname);
-   chosen->frecency_score *= decay;
    chosen->frecency_score++;
+   chosen->last_visited = time(NULL); /* Reset time */
 
    db = fopen(db_path, "wb");
    for (size_t i = 0; i < entries.count; ++i) {
@@ -181,22 +181,17 @@ int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
    return 0;
 }
 
-// TODO: Improve this fucking shit. I hate it.
-double get_decayed_score(char *pattern, Entry *entry, double decay)
+double get_decayed_score(char *pattern, Entry *entry, const time_t time_now)
 {
-   double frequency = entry->frecency_score * decay;
-   int match = get_fzscore(pattern, entry->pathname);
+   double frecency_score;
+   double diff_time = difftime(time_now, entry->last_visited);
+   if (diff_time < 3600) frecency_score = entry->frecency_score * 4; /* Past hour */
+   else if (diff_time < 86400) frecency_score = entry->frecency_score * 2; /* Past day */
+   else if (diff_time < 604800) frecency_score = entry->frecency_score / 2; /* Past week */
+   else frecency_score = entry->frecency_score / 4; /* Otherwise */
+   int match_score = get_fzscore(pattern, entry->pathname);
 
-   return frequency * match;
-   // double lambda = 8.02e-6;
-   //
-   // double diff_time = difftime(time_now, entry->last_visited);
-   // double decay = exp(-lambda * diff_time);
-   //
-   // entry->frecency_score *= decay;
-   // int match_score = get_fzscore(pattern, entry->pathname);
-   //
-   // return entry->frecency_score * match_score;
+   return frecency_score * match_score;
 }
 
 char *get_data_home(void)
@@ -228,7 +223,6 @@ int main(int argc, char *argv[])
    int ret_int = parse_flags(argc, argv);
    if (ret_int) return ret_int;
    const char *db_path = get_data_home();
-   const time_t time_now = time(NULL);
    FILE *db = fopen(db_path, "rb");
 
    Entries entries = {0};
