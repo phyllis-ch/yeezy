@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <assert.h>
+#include <math.h>
 
 typedef struct {
    char *pathname;
@@ -31,11 +32,16 @@ typedef struct {
 } Wrappers;
 
 typedef struct {
-   unsigned int hash;
+   unsigned long hash;
    Entry *ptr;
 } Node;
 
 #define ARR_COUNT(arr) (int)sizeof(arr) / (int)sizeof(arr[0])
+
+#define ENTRIES_PRINT(xs)\
+   for (size_t i = 0; i < xs.count; ++i) {\
+      printf("%s -> %f\n", xs.items[i].pathname, xs.items[i].frecency_score);\
+   }
 
 #define da_append(xs, x)\
    do {\
@@ -61,7 +67,7 @@ void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern);
 
 // db
 void db_write(FILE *db, Entry *entry);
-void db_read(FILE *db, Entries *arr);
+void db_read(FILE *db, Entries *entries);
 void db_append(FILE *db, char *str);
 
 // fuzzy
@@ -71,5 +77,5 @@ int get_basescore(const char *pattern, char *text);
 int get_fzscore(const char *pattern, char *text);
 
 // hashmap
-unsigned int hash(char *str);
-void hm_push(Node *map, unsigned int hash_result, Entry *entry);
+unsigned long hash(const char *str);
+void hm_push(Node *map, unsigned long hash_result, int bucket_size, Entry *entry);
