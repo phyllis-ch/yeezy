@@ -61,7 +61,7 @@ int check_special_paths(char *argv[]);
 int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries);
 int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries);
 int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries);
-double get_decayed_score(char *pattern, Entry *entry, double decay);
+double get_decayed_score(char *pattern, Entry *entry, time_t time_now);
 char *get_data_home(void);
 void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern);
 
