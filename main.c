@@ -1,5 +1,7 @@
 #include "yz.h"
 
+#define BUCKET_SIZE 4096
+
 typedef struct {
    char * fn_name;
    int (*fn_ptr)(FILE *, const char *, char **, Entries);
@@ -71,15 +73,13 @@ int check_special_paths(char *argv[])
       return 1;
    }
 
-   if (*argv[2] == '/') {
+   if (*argv[2] == '/') { /* Check for backslash for absolute path mode */
       printf("%s\n", argv[2]);
       return 1;
    }
 
    if (strrchr(argv[2], '/')) {  /* Check for backslash for relative path mode */
       char *bs_ptr = strrchr(argv[2], '/');
-
-      // TODO: In future, implement cd's absolute path behaviour
       if (*(bs_ptr+1) == '\0') {
          printf("%s\n", argv[2]);
          return 1;
@@ -97,7 +97,6 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
       return 0;
    }
 
-   double decay = 0.95;
    Wrappers filtered_entries = {0};  /* Filter database entries */
    for (size_t i = 0; i < entries.count; ++i) {
       da_filter(&filtered_entries, &entries.items[i], argv[2]);
@@ -107,6 +106,7 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
       return 1;
    }
 
+   double decay = 0.95;
    for (size_t i = 0; i < filtered_entries.count; ++i)
       filtered_entries.items[i].score = get_decayed_score(argv[2], filtered_entries.items[i].entry, decay);
    qsort(filtered_entries.items, filtered_entries.count, sizeof(Entry_Wrapper), comp_score);
@@ -129,7 +129,6 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
 int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
    if (!argv[2]) return 1;
-   double decay = 0.95;
 
    if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
       char *bs_ptr = strrchr(argv[2], '/');
@@ -139,21 +138,21 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
    }
 
    /* First implementation of hashmap */
-   Node map[1024] = {0};
+   Node map[BUCKET_SIZE] = {0};
    for (size_t i = 0; i < entries.count; ++i)
-      hm_push(map, hash(entries.items[i].pathname), &entries.items[i]);
+      hm_push(map, hash(entries.items[i].pathname), BUCKET_SIZE, &entries.items[i]);
 
-   // for (size_t i = 0; i < 1024; ++i) {
-   //    if (map[i].hash != 0) printf("%s -> %u\n", map[i].ptr->pathname, map[i].hash % 1024);
+   // for (size_t i = 0; i < BUCKET_SIZE; ++i) {
+   //    if (map[i].hash != 0) printf("%s -> %d\n", map[i].ptr->pathname, (int)(map[i].hash % BUCKET_SIZE));
    // }
 
-   unsigned int idx = hash(argv[2]) % 1024;
+   int idx = hash(argv[2]) % BUCKET_SIZE;
    if (!map[idx].ptr) {
       db = fopen(db_path, "ab");
       db_append(db, argv[2]);
    }
    else {
-      map[idx].ptr->frecency_score *= decay;
+      // TODO: add decay
       map[idx].ptr->frecency_score++;
 
       db = fopen(db_path, "wb");
@@ -182,12 +181,22 @@ int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
    return 0;
 }
 
+// TODO: Improve this fucking shit. I hate it.
 double get_decayed_score(char *pattern, Entry *entry, double decay)
 {
    double frequency = entry->frecency_score * decay;
    int match = get_fzscore(pattern, entry->pathname);
 
    return frequency * match;
+   // double lambda = 8.02e-6;
+   //
+   // double diff_time = difftime(time_now, entry->last_visited);
+   // double decay = exp(-lambda * diff_time);
+   //
+   // entry->frecency_score *= decay;
+   // int match_score = get_fzscore(pattern, entry->pathname);
+   //
+   // return entry->frecency_score * match_score;
 }
 
 char *get_data_home(void)
@@ -219,6 +228,7 @@ int main(int argc, char *argv[])
    int ret_int = parse_flags(argc, argv);
    if (ret_int) return ret_int;
    const char *db_path = get_data_home();
+   const time_t time_now = time(NULL);
    FILE *db = fopen(db_path, "rb");
 
    Entries entries = {0};
