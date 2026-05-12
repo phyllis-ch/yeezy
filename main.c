@@ -2,12 +2,10 @@
 
 #define BUCKET_SIZE 4096
 
-typedef struct {
+struct Commands {
    char * fn_name;
    int (*fn_ptr)(FILE *, const char *, char **, Entries);
-} Commands;
-
-Commands commands[] = {
+} commands[] = {
    {"query", cmd_query},
    {"add", cmd_add},
    {"list", cmd_list},
@@ -113,8 +111,8 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
 
    Entry *chosen = filtered_entries.items->entry;
    fprintf(stdout, "%s\n", chosen->pathname);
-   chosen->frecency_score++;
-   chosen->last_visited = time(NULL); /* Reset time */
+   // chosen->frecency_score++;
+   // chosen->last_visited = time(NULL); /* Reset time */
 
    db = fopen(db_path, "wb");
    for (size_t i = 0; i < entries.count; ++i) {
@@ -152,8 +150,8 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
       db_append(db, argv[2]);
    }
    else {
-      // TODO: add decay
       map[idx].ptr->frecency_score++;
+      map[idx].ptr->last_visited = time(NULL); /* Reset time */
 
       db = fopen(db_path, "wb");
       for (size_t i = 0; i < entries.count; ++i) {
