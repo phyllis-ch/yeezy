@@ -135,31 +135,23 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
       }
    }
 
-   /* First implementation of hashmap */
-   Node map[BUCKET_SIZE] = {0};
-   for (size_t i = 0; i < entries.count; ++i)
-      hm_push(map, hash(entries.items[i].pathname), BUCKET_SIZE, &entries.items[i]);
+   for (size_t i = 0; i < entries.count; ++i) {
+      if (!strcmp(argv[2], entries.items[i].pathname)) {
+         entries.items[i].frecency_score++;
+         entries.items[i].last_visited = time(NULL);
 
-   // for (size_t i = 0; i < BUCKET_SIZE; ++i) {
-   //    if (map[i].hash != 0) printf("%s -> %d\n", map[i].ptr->pathname, (int)(map[i].hash % BUCKET_SIZE));
-   // }
+         db = fopen(db_path, "wb");
+         for (size_t i = 0; i < entries.count; ++i)
+            db_write(db, &entries.items[i]);
 
-   int idx = hash(argv[2]) % BUCKET_SIZE;
-   if (!map[idx].ptr) {
-      db = fopen(db_path, "ab");
-      db_append(db, argv[2]);
-   }
-   else {
-      map[idx].ptr->frecency_score++;
-      map[idx].ptr->last_visited = time(NULL); /* Reset time */
-
-      db = fopen(db_path, "wb");
-      for (size_t i = 0; i < entries.count; ++i) {
-         db_write(db, &entries.items[i]);
+         fclose(db);
+         return 0;
       }
    }
 
-   fclose(db);
+   db = fopen(db_path, "ab");
+   db_append(db, argv[2]);
+
    return 0;
 }
 
