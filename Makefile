@@ -1,6 +1,6 @@
 PREFIX = /usr/local
 
-SRC = main.c db.c fuzzy.c hashmap.c
+SRC = main.c cmd.c db.c fuzzy.c
 OBJ = ${SRC:.c=.o}
 
 CC = cc
