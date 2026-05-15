@@ -65,6 +65,7 @@ void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern);
 int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries);
 int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries);
 int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries);
+int cmd_remove(FILE *db, const char *db_path, char *argv[], Entries entries);
 
 /* db */
 void db_write(FILE *db, Entry *entry);
