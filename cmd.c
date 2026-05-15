@@ -2,6 +2,8 @@
 
 int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
+   (void)db_path;
+
    if (!argv[2]) return 1;
    if (check_special_paths(argv)) {
       if (db) fclose(db);
@@ -22,16 +24,8 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
    qsort(filtered_entries.items, filtered_entries.count, sizeof(Entry_Wrapper), comp_by_score);
 
    Entry *chosen = filtered_entries.items->entry;
-   fprintf(stdout, "%s\n", chosen->pathname);
-   /* chosen->frecency_score++; */
-   /* chosen->last_visited = time(NULL); */ /* Reset time */
+   puts(chosen->pathname);
 
-   db = fopen(db_path, "wb");
-   for (size_t i = 0; i < entries.count; ++i) {
-      db_write(db, &entries.items[i]);
-   }
-
-   fclose(db);
    free(filtered_entries.items);
    return 0;
 }
@@ -92,3 +86,30 @@ int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
    return 0;
 }
 
+int cmd_remove(FILE *db, const char *db_path, char *argv[], Entries entries)
+{
+   if (!argv[2]) return 1;
+
+   if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
+      char *bs_ptr = strrchr(argv[2], '/');
+      if (*(bs_ptr+1) == '\0') {
+         *bs_ptr='\0';
+      }
+   }
+
+   for (size_t i = 0; i < entries.count; ++i) {
+      if (!strcmp(argv[2], entries.items[i].pathname)) {
+         entries.items[i].pathname = NULL;
+         break;
+      }
+   }
+
+   db = fopen(db_path, "wb");
+   for (size_t i = 0; i < entries.count; ++i) {
+      if (entries.items[i].pathname)
+         db_write(db, &entries.items[i]);
+   }
+
+   fclose(db);
+   return 0;
+}
