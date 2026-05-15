@@ -135,16 +135,23 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
       }
    }
 
+   char *basename = get_basename(argv[2]);
+   Wrappers filtered_entries = {0};  /* Filter database entries */
    for (size_t i = 0; i < entries.count; ++i) {
-      if (!strcmp(argv[2], entries.items[i].pathname)) {
-         entries.items[i].frecency_score++;
-         entries.items[i].last_visited = time(NULL);
+      da_filter(&filtered_entries, &entries.items[i], basename);
+   }
+
+   for (size_t i = 0; i < filtered_entries.count; ++i) {
+      if (!strcmp(argv[2], filtered_entries.items[i].entry->pathname)) {
+         filtered_entries.items[i].entry->frecency_score++;
+         filtered_entries.items[i].entry->last_visited = time(NULL);
 
          db = fopen(db_path, "wb");
          for (size_t i = 0; i < entries.count; ++i)
             db_write(db, &entries.items[i]);
 
          fclose(db);
+         free(filtered_entries.items);
          return 0;
       }
    }
@@ -152,6 +159,8 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
    db = fopen(db_path, "ab");
    db_append(db, argv[2]);
 
+   fclose(db);
+   free(filtered_entries.items);
    return 0;
 }
 
