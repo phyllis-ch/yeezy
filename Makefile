@@ -4,7 +4,7 @@ SRC = main.c db.c fuzzy.c hashmap.c
 OBJ = ${SRC:.c=.o}
 
 CC = cc
-CFLAGS = -std=c99 -Wall -Wextra
+CFLAGS = -std=c99 -Wall -Wextra -pedantic
 LDFLAGS = -lm
 
 all: yeezy
@@ -13,7 +13,7 @@ all: yeezy
 	${CC} -c ${CFLAGS} $<
 
 yeezy: ${OBJ}
-	${CC} -o $@ ${OBJ} ${LDFLAGS}
+	${CC} ${CFLAGS} -o $@ ${OBJ} ${LDFLAGS}
 
 clean:
 	rm -f yeezy ${OBJ}
