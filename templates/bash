@@ -1,0 +1,24 @@
+__yeezy_cd () {
+   builtin cd "$@"
+}
+
+cd () {
+   __yeezy_cd "$@"
+   yeezy add "$(pwd)"
+}
+
+yz () {
+   if [ "$#" -eq 0 ]; then
+      __yeezy_cd "${HOME}"
+   elif [ "$#" -eq 1 ] && [ "$1" = '-' ]; then
+      if [ -n "${OLDPWD}" ]; then
+         __yeezy_cd "${OLDPWD}"
+      fi
+   elif [ "$#" -eq 1 ] && [ -d "$1" ]; then
+      __yeezy_cd "$1" && yeezy add "$(pwd)"
+   else
+      __yeezy_cd "$(yeezy query $@)" && yeezy add "$(pwd)"
+   fi
+}
+
+alias y='yz'
