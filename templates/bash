@@ -5,10 +5,12 @@ __yeezy_cd () {
 yz () {
    if [ "$#" -eq 0 ]; then
       __yeezy_cd "${HOME}"
-   elif [ "$#" -eq 1 ] && [ "$1" = '-' ]; then
+   elif [ "$#" -eq 1 ] && [ "$1" = "-" ]; then
       if [ -n "${OLDPWD}" ]; then
          __yeezy_cd "${OLDPWD}"
       fi
+   elif [ "$#" -eq 1 ] && [ "$1" = ".." ]; then
+      __yeezy_cd ..
    elif [ "$#" -eq 1 ] && [ -d "$1" ]; then
       __yeezy_cd "$1" && yeezy add "$(pwd)"
    else
