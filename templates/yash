@@ -2,11 +2,6 @@ __yeezy_cd () {
    \command cd "$@"
 }
 
-cd () {
-   __yeezy_cd "$@"
-   yeezy add "$(pwd)"
-}
-
 yz () {
    if [ "$#" -eq 0 ]; then
       __yeezy_cd "${HOME}"
