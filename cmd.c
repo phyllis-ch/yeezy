@@ -5,10 +5,6 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
    (void)db_path;
 
    if (!argv[2]) return 1;
-   if (check_special_paths(argv)) {
-      if (db) fclose(db);
-      return 0;
-   }
 
    Wrappers filtered_entries = {0};  /* Filter database entries */
    for (size_t i = 0; i < entries.count; ++i) {
