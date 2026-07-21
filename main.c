@@ -2,12 +2,12 @@
 
 struct Commands {
    char * fn_name;
-   int (*fn_ptr)(FILE *, const char *, char **, Entries);
+   int (*fn)(FILE *, const char *, char **, Entries);
 } commands[] = {
    {"query", cmd_query},
    {"add", cmd_add},
    {"list", cmd_list},
-   /* {"remove", cmd_remove}, */
+   {"remove", cmd_remove},
 };
 
 int parse_flags(int argc, char *argv[])
@@ -22,6 +22,7 @@ int parse_flags(int argc, char *argv[])
       printf("Usage: %s [-h] [command] [<args>]\n\n", argv[0]);
       printf("Commands:\n");
       printf("    add            Add an entry to the database\n");
+      printf("    remove         Remove an entry from the database\n");
       printf("    query          Query entry from the database\n");
       printf("    list           List all entries in the database\n");
       printf("Options:\n");
@@ -123,11 +124,12 @@ void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern)
 }
 
 
+#include "config.h"
 int main(int argc, char *argv[])
 {
    int ret_int = parse_flags(argc, argv);
    if (ret_int) return ret_int;
-   const char *db_path = get_data_home();
+
    FILE *db = fopen(db_path, "rb");
 
    Entries entries = {0};
@@ -139,8 +141,8 @@ int main(int argc, char *argv[])
 
    for (int i = 0; i < ARR_COUNT(commands); ++i) {
       if (!strcmp(argv[1], commands[i].fn_name)) {
-         int status = commands[i].fn_ptr(db, db_path, argv, entries);
-         if (!status) break; /* Do error handling later */
+         int status = commands[i].fn(db, db_path, argv, entries);
+         if (status) return status; /* Do error handling later */
       }
    }
 
