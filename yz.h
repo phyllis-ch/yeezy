@@ -5,6 +5,7 @@
 #include <time.h>
 #include <assert.h>
 #include <math.h>
+#include <sys/stat.h>
 
 typedef struct {
    char *pathname;
@@ -51,6 +52,12 @@ typedef struct {
       }\
       xs.items[xs.count++] = x;\
    } while(0)
+
+#define str_append(buf, src, app, n)\
+   int len = strlen(src);\
+   char buf[len + n];\
+   memcpy(buf, src, len);\
+   memcpy(buf + len, app, n);
 
 /* main */
 int parse_flags(int argc, char *argv[]);
