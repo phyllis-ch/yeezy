@@ -127,9 +127,11 @@ void da_filter(Wrappers *filtered_entries, Entry *entry, char *pattern)
 #include "config.h"
 int main(int argc, char *argv[])
 {
+   mkdir(db_dir, 0755);
    int ret_int = parse_flags(argc, argv);
    if (ret_int) return ret_int;
 
+   str_append(db_path, db_dir, "/yeezy.db", 10);
    FILE *db = fopen(db_path, "rb");
 
    Entries entries = {0};
