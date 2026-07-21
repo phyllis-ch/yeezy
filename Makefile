@@ -11,8 +11,13 @@ CC = cc
 
 all: yeezy
 
+$(OBJ): config.h
+
 .c.o:
 	${CC} -c ${CFLAGS} $<
+
+config.h:
+	cp config.def.h $@
 
 yeezy: ${OBJ}
 	${CC} -o $@ ${OBJ} ${LDFLAGS}
