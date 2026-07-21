@@ -1,1 +1,1 @@
-static const char *db_path = "/path/to/db";
+static const char *db_dir = "/directory/containing/db/";
