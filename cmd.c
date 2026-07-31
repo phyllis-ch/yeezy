@@ -37,10 +37,12 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
       }
    }
 
+   double total_frecency = 0;
    char *basename = get_basename(argv[2]);
    Wrappers filtered_entries = {0};  /* Filter database entries */
    for (size_t i = 0; i < entries.count; ++i) {
       da_filter(&filtered_entries, &entries.items[i], basename);
+      total_frecency += entries.items[i].frecency_score;
    }
 
    for (size_t i = 0; i < filtered_entries.count; ++i) {
@@ -48,9 +50,18 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
          filtered_entries.items[i].entry->frecency_score++;
          filtered_entries.items[i].entry->last_visited = time(NULL);
 
+         if (total_frecency > 4096) {
+            printf("%f\n", total_frecency);
+            for (size_t i = 0; i < entries.count; ++i) {
+               entries.items[i].frecency_score *= 0.9;
+            }
+         }
+
          db = fopen(db_path, "wb");
-         for (size_t i = 0; i < entries.count; ++i)
-            db_write(db, &entries.items[i]);
+         for (size_t i = 0; i < entries.count; ++i) {
+            if (entries.items[i].frecency_score > 1)
+               db_write(db, &entries.items[i]);
+         }
 
          fclose(db);
          free(filtered_entries.items);
