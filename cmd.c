@@ -51,7 +51,6 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
          filtered_entries.items[i].entry->last_visited = time(NULL);
 
          if (total_frecency > 4096) {
-            printf("%f\n", total_frecency);
             for (size_t i = 0; i < entries.count; ++i) {
                entries.items[i].frecency_score *= 0.9;
             }
@@ -59,7 +58,7 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 
          db = fopen(db_path, "wb");
          for (size_t i = 0; i < entries.count; ++i) {
-            if (entries.items[i].frecency_score > 1)
+            if (entries.items[i].frecency_score >= 1)
                db_write(db, &entries.items[i]);
          }
 
