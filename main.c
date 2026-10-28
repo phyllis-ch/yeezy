@@ -53,40 +53,6 @@ int comp_by_freq(const void *a, const void *b)
    return 0;
 }
 
-int check_special_paths(char *argv[])
-{
-   /* TODO: maybe use switch cases in future */
-   if (!strcmp(argv[2], ".")) {
-      printf("%s\n", argv[2]);
-      return 1;
-   }
-
-   if (!strcmp(argv[2], "..")) {
-      printf("%s\n", argv[2]);
-      return 1;
-   }
-
-   if (!strcmp(argv[2], "-")) {
-      printf("%s\n", getenv("OLDPWD"));
-      return 1;
-   }
-
-   if (*argv[2] == '/') { /* Check for backslash for absolute path mode */
-      printf("%s\n", argv[2]);
-      return 1;
-   }
-
-   if (strrchr(argv[2], '/')) {  /* Check for backslash for relative path mode */
-      char *bs_ptr = strrchr(argv[2], '/');
-      if (*(bs_ptr+1) == '\0') {
-         printf("%s\n", argv[2]);
-         return 1;
-      }
-   }
-
-   return 0;
-}
-
 double get_decayed_score(char *pattern, Entry *entry, const time_t time_now)
 {
    double frecency_score;
