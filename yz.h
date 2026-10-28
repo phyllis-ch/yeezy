@@ -59,6 +59,16 @@ typedef struct {
    memcpy(buf, src, len);\
    memcpy(buf + len, app, n);
 
+#define trailing_char_remove(str, c)\
+   do {\
+      if (strrchr(str, c)) {\
+         char *bs_ptr = strrchr(str, c);\
+         if (*(bs_ptr+1) == '\0') {\
+            *bs_ptr='\0';\
+         }\
+      }\
+   } while(0)
+
 /* main */
 int parse_flags(int argc, char *argv[]);
 int comp_by_score(const void *a, const void *b);

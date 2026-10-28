@@ -30,12 +30,7 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
    if (!argv[2]) return 1;
 
-   if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
-      char *bs_ptr = strrchr(argv[2], '/');
-      if (*(bs_ptr+1) == '\0') {
-         *bs_ptr='\0';
-      }
-   }
+   trailing_char_remove(argv[2], '/');
 
    double total_frecency = 0;
    char *basename = get_basename(argv[2]);
@@ -56,7 +51,7 @@ int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
             }
          }
 
-         db = fopen(db_path, "wb");
+         db = fopen(db_path, "wb"); /* Increment db frecency */
          for (size_t i = 0; i < entries.count; ++i) {
             if (entries.items[i].frecency_score >= 1)
                db_write(db, &entries.items[i]);
