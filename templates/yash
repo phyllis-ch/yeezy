@@ -1,5 +1,14 @@
 __yeezy_cd () {
-   \command cd "$@"
+   command -b cd "$@"
+}
+
+__yeezy_oldpwd="${PWD}"
+
+__yeezy_hook() {
+   if [ "${__yeezy_oldpwd}" != "${PWD}" ]; then
+      __yeezy_oldpwd="${PWD}"
+      yeezy add ${PWD}
+   fi
 }
 
 yz () {
@@ -12,10 +21,11 @@ yz () {
    elif [ "$#" -eq 1 ] && [ "$1" = ".." ]; then
       __yeezy_cd ..
    elif [ "$#" -eq 1 ] && [ -d "$1" ]; then
-      __yeezy_cd "$1" && yeezy add "$(pwd)"
+      __yeezy_cd "$1"
    else
-      __yeezy_cd "$(yeezy query $@)" && yeezy add "$(pwd)"
+      __yeezy_cd "$(yeezy query $@)"
    fi
 }
 
+POST_PROMPT_COMMAND=__yeezy_hook
 alias y='yz'
