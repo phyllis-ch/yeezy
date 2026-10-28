@@ -29,7 +29,6 @@ int cmd_query(FILE *db, const char *db_path, char *argv[], Entries entries)
 int cmd_add(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
    if (!argv[2]) return 1;
-
    trailing_char_remove(argv[2], '/');
 
    double total_frecency = 0;
@@ -90,13 +89,7 @@ int cmd_list(FILE *db, const char *db_path, char *argv[], Entries entries)
 int cmd_remove(FILE *db, const char *db_path, char *argv[], Entries entries)
 {
    if (!argv[2]) return 1;
-
-   if (strrchr(argv[2], '/')) {  /* Remove trailing backslash */
-      char *bs_ptr = strrchr(argv[2], '/');
-      if (*(bs_ptr+1) == '\0') {
-         *bs_ptr='\0';
-      }
-   }
+   trailing_char_remove(argv[2], '/');
 
    for (size_t i = 0; i < entries.count; ++i) {
       if (!strcmp(argv[2], entries.items[i].pathname)) {
